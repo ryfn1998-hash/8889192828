@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1000">
+    <title>Meta大屠殺公墓 - 超級管理控制台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --text-color: #d0d0d0;
+            --accent-color: #8b0000;
+            --stone-text: #3a3a3a; 
+            --admin-bg: #161616;
+        }
+        
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; padding: 0;
+            text-align: center;
+        }
+
+        /* 頂部功能切換橫幅 */
+        #system-menu {
+            background: #111;
+            padding: 15px;
+            border-bottom: 2px solid var(--accent-color);
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 2000;
+        }
+        .menu-btn {
+            background: #333; color: #fff; border: none; padding: 10px 25px;
+            font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;
+        }
+        .menu-btn.active { background: var(--accent-color); }
+
+        /* 分頁區塊控制 */
+        .page-view { display: none; }
+        .page-view.active { display: block; }
+
+        /* ==================== 前台公墓樣式 ==================== */
+        header.hero {
+            background: linear-gradient(to bottom, #000 0%, var(--bg-color) 100%);
+            padding: 100px 20px 40px 20px;
+            border-bottom: 1px solid #222;
+        }
+        h1 { font-family: 'Noto Serif TC', serif; font-size: 3.5rem; margin: 0; color: #eee; letter-spacing: 2px; }
+        .owner-tag { margin-top: 18px; font-size: 1rem; color: #bbb; }
+        .owner-tag a { color: #fff; text-decoration: none; font-weight: bold; border-bottom: 1px solid #666; }
+        .subtitle { color: #666; font-style: italic; margin: 25px auto; max-width: 600px; font-size: 1.1rem; }
+        .victim-counter {
+            background: rgba(255,255,255,0.05); display: inline-block;
+            padding: 10px 30px; border-radius: 50px; border: 1px solid #333;
+            font-size: 0.95rem; color: #aaa; margin-bottom: 20px;
+        }
+        .controls { margin: 40px auto; display: flex; gap: 15px; justify-content: center; }
+        input[type="text"] { padding: 12px 25px; border-radius: 30px; border: 1px solid #444; background: #111; color: #fff; width: 350px; }
+        
+        .graveyard-container { width: 100%; display: flex; justify-content: center; }
+        .graveyard { display: grid; grid-template-columns: repeat(3, 300px); gap: 50px; padding: 20px 0 100px 0; }
+        .tombstone-wrapper { position: relative; width: 100%; }
+        .tombstone-wrapper img { width: 100%; filter: grayscale(0.2) drop-shadow(0 10px 30px rgba(0,0,0,0.8)); }
+        .tombstone-text {
+            position: absolute; top: 36%; left: 15%; right: 15%; text-align: center; color: var(--stone-text);
+            font-family: 'Noto Serif TC', serif; font-weight: bold; pointer-events: none;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.15), -1px -1px 0px rgba(0,0,0,0.3);
+        }
+        .tombstone-text .name { font-size: 1.4rem; margin-bottom: 12px; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+        .tombstone-text .id { font-size: 0.95rem; margin-bottom: 12px; color: #3a3a3a; }
+        .tombstone-text .date { font-size: 0.85rem; border-top: 1px solid #777; padding-top: 8px; margin-top: 5px; color: #555; }
+
+        /* ==================== 後台全功能管理面板樣式 ==================== */
+        #admin-view { background: var(--admin-bg); min-height: 100vh; text-align: left; padding: 40px; box-sizing: border-box; }
+        .admin-container { max-width: 1200px; margin: 0 auto; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 30px; }
+        .panel-title { font-size: 1.8rem; color: #fff; font-family: 'Noto Serif TC', serif; margin: 0; }
+        
+        /* 快速新增區單 */
+        .quick-add-box { background: #222; padding: 20px; border-radius: 6px; margin-bottom: 30px; display: flex; gap: 15px; align-items: flex-end; border: 1px solid #333; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; flex-grow: 1; }
+        .form-group label { font-size: 0.85rem; color: #aaa; }
+        .form-group input { background: #111; border: 1px solid #444; padding: 10px; color: #fff; border-radius: 4px; }
+        .action-btn { background: var(--accent-color); color: #fff; border: none; padding: 11px 25px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .action-btn.secondary { background: #444; }
+
+        /* 資料管理表格 */
+        .data-table-wrapper { background: #1e1e1e; border-radius: 6px; overflow: hidden; border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; text-align: left; color: #e0e0e0; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #333; }
+        th { background: #252525; color: #fff; font-size: 0.95rem; }
+        tr:hover { background: #252525; }
+        .table-input { background: #111; border: 1px solid #444; color: #fff; padding: 6px 10px; border-radius: 4px; width: 90%; }
+        .btn-delete { background: #c0392b; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-delete:hover { background: #e74c3c; }
+        
+        #loading { margin: 100px; font-size: 1.2rem; color: #666; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+    <!-- 系統主導覽列 -->
+    <div id="system-menu">
+        <button id="btn-gview" class="menu-btn active" onclick="switchPage('graveyard')">👁️ 查看公墓前台</button>
+        <button id="btn-aview" class="menu-btn" onclick="switchPage('admin')">🛠️ 進入萬能管理後台</button>
+    </div>
+
+    <!-- ==================== [分頁 1] 前台公墓展示區 ==================== -->
+    <div id="graveyard-view" class="page-view active">
+        <header class="hero">
+            <h1>2026 Meta大屠殺事件受害者公墓</h1>
+            <p class="owner-tag">由 <a href="https://www.threads.net/@iam.xiaoyou" target="_blank">@iam.xiaoyou</a> 建立與維護 (自由管理版)</p>
+            <p class="subtitle">「我們致力於打造一個安全的社群... 直到你消失為止。」</p>
+            <div class="victim-counter">
+                目前已有 <span id="victim-count">0</span> 位數位靈魂在此長眠
+            </div>
+        </header>
+
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="搜尋姓名或 ID..." onkeyup="searchGraves()">
+        </div>
+
+        <div id="loading">正在開啟冥府公墓大門...</div>
+        <div class="graveyard-container">
+            <div class="graveyard" id="graveyard"></div>
+        </div>
+    </div>
+
+
+    <!-- ==================== [分頁 2] 後台全權手動管理面板 ==================== -->
+    <div id="admin-view" class="page-view">
+        <div class="admin-container">
+            
+            <div class="panel-header">
+                <h2 class="panel-title">冥府死籍變更控制台</h2>
+                <div>
+                    <button class="action-btn secondary" onclick="pullFromGoogleSheet()">🔄 從線上 Google 試算表同步抓取</button>
+                    <button class="action-btn" style="background: #27ae60;" onclick="saveAllChanges()">💾 儲存並套用所有變更</button>
+                </div>
+            </div>
+
+            <!-- 區塊 A：直接手動通報安葬 -->
+            <div class="quick-add-box">
+                <div class="form-group">
+                    <label>罹難者名稱</label>
+                    <input type="text" id="addName" placeholder="例如：小明">
+                </div>
+                <div class="form-group">
+                    <label>Threads ID</label>
+                    <input type="text" id="addID" placeholder="例如：xiaoming123">
+                </div>
+                <div class="form-group">
+                    <label>遇難安葬時間</label>
+                    <input type="text" id="addDate" placeholder="2026-06-17">
+                </div>
+                <button class="action-btn" onclick="manuallyAddVicitm()">➕ 立即安葬</button>
+            </div>
+
+            <!-- 區塊 B：目前的清單動態修改表格 -->
+            <div class="data-table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;">序號</th>
+                            <th style="width: 25%;">死者名稱 (可直接修改)</th>
+                            <th style="width: 25%;">死者 ID (可直接修改)</th>
+                            <th style="width: 25%;">死亡日期 (可直接修改)</th>
+                            <th style="width: 17%;">管理操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody">
+                        <!-- 動態插入名單資料列 -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 設定常數路徑
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1fNqY7jkBBoXbw5w0EqzzdvtPHI2vMfXX1Sk4co11SJ4/gviz/tq?tqx=out:csv';
+        const TOMBSTONE_IMG = 'file_0000000012cc722fadf5374a54f461bd.png';
+
+        // 核心全域變數資料庫 (核心改由陣列控制，以便自由編輯、刪除、新增)
+        let deadPeople = [];
+
+        // 預設填入今天的日期格式
+        document.getElementById('addDate').value = new Date().toISOString().split('T')[0];
+
+        // 核心：分頁切換
+        function switchPage(page) {
+            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            
+            if (page === 'graveyard') {
+                document.getElementById('graveyard-view').classList.add('active');
+                document.getElementById('btn-gview').classList.add('active');
+                // 切回前台時，依照記憶體中最新資料重新繪製
+                renderFrontEnd();
+            } else {
+                document.getElementById('admin-view').classList.add('active');
+                document.getElementById('btn-aview').classList.add('active');
+                renderAdminTable();
+            }
+        }
+
+        // 後台功能：從網路上下載原始 Google Sheet 資料
+        async function pullFromGoogleSheet() {
+            if(deadPeople.length > 0 && !confirm("重新同步將會覆蓋掉你目前在網頁上動態修改、尚未保存的所有內容，確定嗎？")) return;
+            
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                const text = await response.text();
+                deadPeople = parseCSV(text);
+                
+                alert(`成功同步！共載入 ${deadPeople.length} 筆罹難者死籍。`);
+                renderFrontEnd();
+                renderAdminTable();
+            } catch (e) {
+                alert('抓取失敗，請確認你的網路連線或 Google 試算表權限！');
+            }
+        }
+
+        // 解析 CSV 文字
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                const cleanData = row.map(val => val.replace(/^"|"$/g, '').replace(/""/g, '"'));
+                if(cleanData[1] || cleanData[2]) {
+                    result.push({ 
+                        name: cleanData[1] || '無名氏', 
+                        id: cleanData[2] || '未知', 
+                        date: cleanData[3] || '日期不詳' 
+                    });
+                }
+            }
+            return result.reverse(); // 讓最新通報的排在最前面
+        }
+
+        // 【前台展示繪製】
+        function renderFrontEnd(dataList = deadPeople) {
+            const container = document.getElementById('graveyard');
+            const loadingText = document.getElementById('loading');
+            
+            if(dataList.length === 0) {
+                loadingText.innerText = '目前公墓內沒有長眠的數據，請至管理後台新增或同步。';
+                loadingText.style.display = 'block';
+                container.innerHTML = '';
+                document.getElementById('victim-count').innerText = 0;
+                return;
+            }
+
+            loadingText.style.display = 'none';
+            container.innerHTML = '';
+            document.getElementById('victim-count').innerText = deadPeople.length;
+
+            dataList.forEach(person => {
+                const grave = document.createElement('div');
+                grave.className = 'tombstone-wrapper';
+                grave.innerHTML = `
+                    <img src="${TOMBSTONE_IMG}" loading="lazy">
+                    <div class="tombstone-text">
+                        <div class="name">${escapeHTML(person.name)}</div>
+                        <div class="id">${escapeHTML(person.id)}</div>
+                        <div class="date">${escapeHTML(person.date)}</div>
+                    </div>
+                `;
+                container.appendChild(grave);
+            });
+        }
+
+        // 【前台搜尋功能】
+        function searchGraves() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = deadPeople.filter(p => 
+                p.name.toLowerCase().includes(keyword) || 
+                p.id.toLowerCase().includes(keyword)
+            );
+            renderFrontEnd(filtered);
+        }
+
+        // 【後台功能：渲染管理表格】
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+
+            deadPeople.forEach((person, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${deadPeople.length - index}</td>
+                    <td><input type="text" class="table-input" value="${escapeHTML(person.name)}" onchange="updateCell(${index}, 'name', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${escapeHTML(person.id)}" onchange="updateCell(${index}, 'id', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${escapeHTML(person.date)}" onchange="updateCell(${index}, 'date', this.value)"></td>
+                    <td><button class="btn-delete" onclick="deleteVictim(${index})">⚰️ 移出公墓</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 後台即時編輯更新記憶體陣列
+        function updateCell(index, field, value) {
+            deadPeople[index][field] = value;
+        }
+
+        // 後台功能：手動點擊按鈕新增
+        function manuallyAddVicitm() {
+            const name = document.getElementById('addName').value.trim();
+            const id = document.getElementById('addID').value.trim();
+            const date = document.getElementById('addDate').value.trim();
+
+            if (!name || !id) return alert('請至少填寫死者名稱與 ID！');
+
+            // 塞入陣列最前端（最新位置）
+            deadPeople.unshift({ name, id, date });
+            
+            // 清空輸入欄位
+            document.getElementById('addName').value = '';
+            document.getElementById('addID').value = '';
+
+            alert(`已成功將 ${name} 安葬入庫！`);
+            renderAdminTable();
+        }
+
+        // 後台功能：刪除單筆資料
+        function deleteVictim(index) {
+            if(confirm(`確定要將「${deadPeople[index].name}」移出此公墓（除籍）嗎？`)) {
+                deadPeople.splice(index, 1);
+                renderAdminTable();
+            }
+        }
+
+        // 後台功能：儲存全部變更
+        function saveAllChanges() {
+            // 本地快取儲存，這樣你重新整理網頁時，修改好的資料不會不見
+            localStorage.setItem('local_graveyard_db', JSON.stringify(deadPeople));
+            alert('💾 所有手動增刪修改已成功儲存至本機快取！前台墓碑已即時更新。');
+            switchPage('graveyard');
+        }
+
+        // 安全跳脫處理
+        function escapeHTML(str) { 
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); 
+        }
+
+        // 啟動自我檢查流程
+        window.onload = () => {
+            const cache = localStorage.getItem('local_graveyard_db');
+            if (cache) {
+                // 如果本地有修改過留下來的紀錄，優先載入
+                deadPeople = JSON.parse(cache);
+                renderFrontEnd();
+            } else {
+                // 沒有紀錄的話，第一次自動上網抓取 Google 試算表作為基底
+                pullFromGoogleSheet();
+            }
+        };
+    </script>
+</body>
+  </html>
+
