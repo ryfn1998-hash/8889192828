@@ -50,9 +50,8 @@
             box-shadow: 0 0 10px rgba(163,0,0,0.5);
         }
 
-        .page-view { display: none; padding: 15px; box-sizing: border-box; animation: fadeIn 0.3s ease; }
+        .page-view { display: none; padding: 15px; box-sizing: border-box; }
         .page-view.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         header.hero { padding: 40px 15px 15px 15px; text-align: center; }
         header.hero h1 { font-family: 'Noto Serif TC', serif; font-size: 2.2rem; margin: 0; color: #fff; letter-spacing: 1px; }
@@ -69,7 +68,6 @@
             background: #111; color: #fff; width: 100%; box-sizing: border-box; 
             font-size: 1.05rem; margin-bottom: 25px; text-align: center;
         }
-        .search-bar:focus { border-color: var(--accent-color); outline: none; }
 
         .graveyard-container { width: 100%; padding: 0; box-sizing: border-box; }
         .graveyard { 
@@ -118,12 +116,6 @@
         .card-input-group { display: flex; align-items: center; gap: 8px; }
         .card-input-group span { font-size: 0.85rem; color: #888; width: 50px; shrink: 0; font-weight: bold; }
         .card-input-group input { background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; flex-grow: 1; font-size: 1rem; }
-
-        #autosave-indicator {
-            position: fixed; bottom: 20px; right: 20px; background: #15803d; color: #fff;
-            padding: 8px 16px; border-radius: 30px; font-size: 0.85rem; font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; z-index: 3000;
-        }
     </style>
 </head>
 <body>
@@ -133,8 +125,6 @@
         <button id="btn-aview" class="menu-btn" onclick="switchPage('admin')">🛠️ 進入決策後台</button>
     </div>
 
-    <div id="autosave-indicator">✓ 已自動儲存並同步</div>
-
     <div id="graveyard-view" class="page-view active">
         <header class="hero">
             <h1>Meta大屠殺受害者公墓</h1>
@@ -143,7 +133,7 @@
             <div class="victim-counter">已有 <span id="victim-count">0</span> 位在此長眠</div>
             <input type="text" id="searchInput" class="search-bar" placeholder="輸入關鍵字，搜尋特定的靈魂..." onkeyup="searchGraves()">
         </header>
-        <div id="loading" style="text-align:center; font-weight:bold; color:#666;">正在開啟冥府公墓大門...</div>
+        <div id="loading" style="text-align:center; font-weight:bold; color:#666; display:none;">正在開啟冥府公墓大門...</div>
         <div class="graveyard-container">
             <div class="graveyard" id="graveyard"></div>
         </div>
@@ -165,11 +155,11 @@
                     <div class="form-group"><label>Threads ID</label><input type="text" id="addID" placeholder="例如：xiaoming_123"></div>
                     <div class="form-group"><label>死亡安葬日期</label><input type="text" id="addDate" placeholder="2026-07-14"></div>
                 </div>
-                <button class="action-btn" style="background: #1e3a8a; margin-top: 10px;" onclick="manuallyAddVicitm()">立即建立墓碑</button>
+                <button class="action-btn" style="background: #1e3a8a; margin-top: 10px;" onclick="manuallyAddVicitm()">立即建立墓碑 (將自動重整網頁)</button>
             </div>
 
             <div class="admin-box" style="border: 2px solid #7f1d1d; background: rgba(127,29,29,0.15);">
-                <h3 style="color: #fca5a5;">⚡ 指定數量：批量快速除籍</h3>
+                <h3>⚡ 指定數量：批量快速除籍</h3>
                 <div class="form-group">
                     <label>要從「最新加入」的名單中，一口氣剔除幾筆？</label>
                     <div style="display: flex; gap: 10px; margin-top: 5px;">
@@ -209,33 +199,26 @@
         
         let deadPeople = [];
         const todayStr = new Date().toISOString().split('T')[0];
-        document.getElementById('addDate').value = todayStr;
-        document.getElementById('batchDate').value = todayStr;
 
-        // 【自動儲存並強制同步前台】
-        function autoSave() {
+        // 【1000% 終極保險儲存：寫入資料庫並原地硬性重整網頁】
+        function forceSaveAndRefresh() {
             localStorage.setItem('local_graveyard_db', JSON.stringify(deadPeople));
-            
-            // 即時同步給前台的 HTML 結構，防止凍結
-            renderFrontEnd(); 
-
-            const indicator = document.getElementById('autosave-indicator');
-            indicator.style.display = 'block';
-            setTimeout(() => { indicator.style.display = 'none'; }, 1000);
+            // 重新整理網頁，徹底殺死任何快取與凍結 DOM 的靈異現象！
+            window.location.reload(); 
         }
 
-        // 【關鍵修正：點選切換頁面時，強制重新渲染前台】
+        // 分頁切換 (順便把目前在哪個分頁記錄下來)
         function switchPage(page) {
+            sessionStorage.setItem('current_view_tab', page);
             document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            
             if (page === 'graveyard') {
                 document.getElementById('graveyard-view').classList.add('active');
                 document.getElementById('btn-gview').classList.add('active');
-                renderFrontEnd(); // 每次點擊巡視前台，都用最新記憶體重繪畫面
             } else {
                 document.getElementById('admin-view').classList.add('active');
                 document.getElementById('btn-aview').classList.add('active');
-                renderAdminCards();
             }
         }
 
@@ -245,10 +228,7 @@
                 const response = await fetch(SHEET_CSV_URL);
                 const text = await response.text();
                 deadPeople = parseCSV(text);
-                autoSave();
-                alert(`同步完成！已載入 ${deadPeople.length} 筆靈魂資料。`);
-                renderFrontEnd();
-                renderAdminCards();
+                forceSaveAndRefresh();
             } catch (e) { alert('網路異常，無法取得 Google 試算表。'); }
         }
 
@@ -265,7 +245,6 @@
 
         function renderFrontEnd(dataList = deadPeople) {
             const container = document.getElementById('graveyard');
-            document.getElementById('loading').style.display = 'none';
             container.innerHTML = '';
             document.getElementById('victim-count').innerText = deadPeople.length;
             
@@ -304,9 +283,9 @@
                         <button class="btn-delete" onclick="deleteVictim(${index})">⚰️ 除籍</button>
                     </div>
                     <div class="card-inputs">
-                        <div class="card-input-group"><span>名稱:</span><input type="text" value="${escapeHTML(person.name)}" oninput="updateCell(${index}, 'name', this.value)"></div>
-                        <div class="card-input-group"><span>ID:</span><input type="text" value="${escapeHTML(person.id)}" oninput="updateCell(${index}, 'id', this.value)"></div>
-                        <div class="card-input-group"><span>日期:</span><input type="text" value="${escapeHTML(person.date)}" oninput="updateCell(${index}, 'date', this.value)"></div>
+                        <div class="card-input-group"><span>名稱:</span><input type="text" value="${escapeHTML(person.name)}" onchange="updateCell(${index}, 'name', this.value)"></div>
+                        <div class="card-input-group"><span>ID:</span><input type="text" value="${escapeHTML(person.id)}" onchange="updateCell(${index}, 'id', this.value)"></div>
+                        <div class="card-input-group"><span>日期:</span><input type="text" value="${escapeHTML(person.date)}" onchange="updateCell(${index}, 'date', this.value)"></div>
                     </div>
                 `;
                 container.appendChild(card);
@@ -314,9 +293,10 @@
             updateSelectedCounter();
         }
 
+        // 修改完文字後存檔
         function updateCell(index, field, value) { 
             deadPeople[index][field] = value; 
-            autoSave(); 
+            localStorage.setItem('local_graveyard_db', JSON.stringify(deadPeople));
         }
 
         function manuallyAddVicitm() {
@@ -327,12 +307,7 @@
             if (!name || !id) return alert('請完整輸入名稱與 ID！');
 
             deadPeople.unshift({ name, id, date: date || todayStr });
-            document.getElementById('addName').value = '';
-            document.getElementById('addID').value = '';
-            
-            autoSave(); 
-            alert(`已成功安葬：${name}`);
-            renderAdminCards();
+            forceSaveAndRefresh();
         }
 
         function quickDeleteLatest() {
@@ -346,10 +321,7 @@
             if (!confirm(`⚠️ 確定要從最新的數據中，「一口氣剔除最後加入的 ${actualDeleteCount} 筆」資料嗎？`)) return;
             
             deadPeople.splice(0, actualDeleteCount);
-            
-            autoSave(); 
-            alert(`🔥 已成功刪除 ${actualDeleteCount} 筆最新死籍！`);
-            renderAdminCards();
+            forceSaveAndRefresh();
         }
 
         function generateBatchVictims() {
@@ -365,13 +337,9 @@
                 let numStr = String(i).padStart(3, '0');
                 deadPeople.unshift({ name: `${namePrefix}${numStr}`, id: `${idPrefix}${numStr}`, date: date || todayStr });
             }
-            
-            autoSave(); 
-            alert(`🏭 自動工廠已成功產出 ${count} 具木棺！`);
-            renderAdminCards();
+            forceSaveAndRefresh();
         }
 
-        // 勾選控制項目
         function updateSelectedCounter() { document.getElementById('selected-counter').innerText = document.querySelectorAll('.grave-checkbox:checked').length; }
         function toggleSelectAll(status) { document.querySelectorAll('.grave-checkbox').forEach(cb => cb.checked = status); updateSelectedCounter(); }
         function reverseSelection() { document.querySelectorAll('.grave-checkbox').forEach(cb => cb.checked = !cb.checked); updateSelectedCounter(); }
@@ -379,8 +347,7 @@
         function deleteVictim(index) {
             if(confirm(`確定要將此位移出公墓嗎？`)) { 
                 deadPeople.splice(index, 1); 
-                autoSave(); 
-                renderAdminCards(); 
+                forceSaveAndRefresh();
             }
         }
 
@@ -391,30 +358,40 @@
             if (!confirm(`確定集體刪除這 ${toDelete.length} 筆資料嗎？`)) return;
             
             toDelete.sort((a, b) => b - a).forEach(idx => deadPeople.splice(idx, 1));
-            autoSave(); 
-            renderAdminCards();
+            forceSaveAndRefresh();
         }
 
         function clearAllGraves() { 
             if (confirm('🚨🚨🚨 警告：這會將全墓園夷為平地！確定要全部清空嗎？')) { 
                 deadPeople = []; 
-                autoSave(); 
-                renderAdminCards(); 
+                forceSaveAndRefresh();
             } 
         }
 
         function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
+        // 啟動程序
         window.onload = () => {
+            document.getElementById('addDate').value = todayStr;
+            document.getElementById('batchDate').value = todayStr;
+
             const cache = localStorage.getItem('local_graveyard_db');
             if (cache) { 
                 deadPeople = JSON.parse(cache); 
-                renderFrontEnd(); 
             } else { 
+                // 第一次進來沒資料才去抓
                 pullFromGoogleSheet(); 
+                return;
             }
+
+            // 1000% 核心渲染
+            renderFrontEnd(); 
+            renderAdminCards();
+
+            // 檢查重整前是在哪個分頁，自動定位回去
+            const savedTab = sessionStorage.getItem('current_view_tab') || 'graveyard';
+            switchPage(savedTab);
         };
     </script>
 </body>
 </html>
-    
